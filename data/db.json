@@ -1,0 +1,110 @@
+{
+  "competitions": [
+    {
+      "id": "code-sprint",
+      "name": "Code Sprint",
+      "category": "Technical",
+      "date": "2026-05-15",
+      "venue": "Computer Lab A",
+      "fee": 600,
+      "teamMin": 2,
+      "teamMax": 4,
+      "seats": 80
+    },
+    {
+      "id": "business-plan",
+      "name": "Business Plan Pitch",
+      "category": "Management",
+      "date": "2026-05-16",
+      "venue": "Seminar Hall",
+      "fee": 1000,
+      "teamMin": 2,
+      "teamMax": 4,
+      "seats": 40
+    },
+    {
+      "id": "robotics-rush",
+      "name": "Robotics Rush",
+      "category": "Engineering",
+      "date": "2026-05-17",
+      "venue": "Innovation Lab",
+      "fee": 1000,
+      "teamMin": 2,
+      "teamMax": 4,
+      "seats": 30
+    },
+    {
+      "id": "poster-design",
+      "name": "Poster Design",
+      "category": "Creative",
+      "date": "2026-05-15",
+      "venue": "Design Studio",
+      "fee": 1000,
+      "teamMin": 2,
+      "teamMax": 4,
+      "seats": 100
+    }
+  ],
+  "students": [
+    {
+      "id": "stu_b355d730bf6baf1d",
+      "fullName": "Shivakumar SN",
+      "email": "shivu200500@gmail.com",
+      "phone": "+919148176218",
+      "passwordHash": "8ade61fc676fe88cbc30ad67abdbf810:45c35e843ca70b8173fc5f039d7d957ae736a52a75eb792276e8d78dbcf5d271",
+      "collegeName": "KALPATARU INSTITUTE OF TECHNOLOGY",
+      "collegeCode": "KA501",
+      "city": "Shivakumar S N",
+      "department": "CS",
+      "year": "1st Year",
+      "rollNumber": "1KI23CS001",
+      "createdAt": "2026-04-27T13:35:14.579Z"
+    },
+    {
+      "id": "stu_d5a56d4a722da8ca",
+      "fullName": "Shivakumar SN",
+      "email": "shshivakumar234@gmail.com",
+      "phone": "+919148176218",
+      "passwordHash": "eb1475ded7c1f5a0f94d855c6fe158b6:5efb7d605a975ce2ec5cb7a69fa70c320813589570f6fcea766fdb3f9c5f7b63",
+      "collegeName": "KALPATARU INSTITUTE OF TECHNOLOGY",
+      "collegeCode": "KA501",
+      "city": "Shivakumar S N",
+      "department": "CS",
+      "year": "1st Year",
+      "rollNumber": "1KI23CS0002",
+      "createdAt": "2026-04-28T12:54:53.008Z"
+    }
+  ],
+  "registrations": [
+    {
+      "id": "reg_627a88dfeaebd9ec",
+      "studentId": "stu_b355d730bf6baf1d",
+      "competitionId": "code-sprint",
+      "teamName": "Code Ninjas",
+      "teamSize": 4,
+      "feeAmount": 1000,
+      "paymentStatus": "Paid",
+      "paymentMethod": "UPI",
+      "paymentReference": "PAY-MOH8P2GK-EC23",
+      "paidAt": "2026-04-27T13:35:17.684Z",
+      "adminStatus": "Verified",
+      "createdAt": "2026-04-27T13:35:14.579Z",
+      "updatedAt": "2026-04-28T12:48:58.380Z"
+    },
+    {
+      "id": "reg_64c9efc685f5b279",
+      "studentId": "stu_d5a56d4a722da8ca",
+      "competitionId": "code-sprint",
+      "teamName": "Codere",
+      "teamSize": 2,
+      "feeAmount": 1000,
+      "paymentStatus": "Paid",
+      "paymentMethod": "UPI QR",
+      "paymentReference": "PAY-MOIMP7U7-A302",
+      "paidAt": "2026-04-28T12:55:05.455Z",
+      "adminStatus": "Rejected",
+      "createdAt": "2026-04-28T12:54:53.008Z",
+      "updatedAt": "2026-04-28T13:05:59.734Z"
+    }
+  ]
+}

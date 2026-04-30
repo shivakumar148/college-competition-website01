@@ -1,0 +1,17 @@
+{
+  "name": "college-competition-registration",
+  "version": "1.0.0",
+  "description": "Student competition registration website with admin access and fee tracking.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "college",
+    "competition",
+    "registration",
+    "admin"
+  ],
+  "author": "",
+  "license": "MIT"
+}
