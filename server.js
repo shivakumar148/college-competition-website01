@@ -14,12 +14,14 @@ const SETTINGS_PATH = path.join(DATA_DIR, "settings.json");
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "admin@collegefest.local").toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+const PLACEHOLDER_UPI_ID = "add-your-upi-id@bank";
+const DEFAULT_UPI_NAME = "KALPATARU INSTITUTE OF TECHNOLOGY";
 
 const sessions = new Map();
 
 const defaultSettings = {
-  upiId: process.env.UPI_ID || "add-your-upi-id@bank",
-  upiName: process.env.UPI_NAME || "KALPATARU INSTITUTE OF TECHNOLOGY"
+  upiId: process.env.UPI_ID || PLACEHOLDER_UPI_ID,
+  upiName: process.env.UPI_NAME || DEFAULT_UPI_NAME
 };
 
 const initialData = {
@@ -132,7 +134,7 @@ async function writeSettings(settings) {
 
 function publicPaymentSettings(settings) {
   const upiId = settings.upiId || defaultSettings.upiId;
-  const configured = upiId !== defaultSettings.upiId && upiId.includes("@");
+  const configured = upiId !== PLACEHOLDER_UPI_ID && upiId.includes("@");
   return {
     upiId,
     upiName: settings.upiName || defaultSettings.upiName,
