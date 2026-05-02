@@ -562,13 +562,18 @@ function paymentForm(reg) {
     </div>
     <div class="upi-payment">
       <div class="upi-qr ${settings.configured ? "" : "upi-qr-disabled"}" data-upi-qr data-upi-uri="${escapeHtml(payment.uri)}">
-        ${settings.configured ? "" : "<span>UPI ID needed</span>"}
+        ${settings.configured ? `<img src="${escapeHtml(payment.qrUrl)}" alt="UPI QR code for ${escapeHtml(settings.upiId)}" loading="eager" />` : "<span>UPI ID needed</span>"}
       </div>
       <div class="upi-details">
         <span>Pay by UPI QR</span>
         <strong>${money.format(reg?.feeAmount || 0)}</strong>
         <p>Receiver: ${escapeHtml(settings.upiName || COLLEGE_NAME)}<br />UPI ID: ${escapeHtml(settings.upiId || "add-your-upi-id@bank")}</p>
-        ${settings.configured ? `<a class="primary-btn action-link" href="${escapeHtml(payment.uri)}">Open UPI App</a>` : ""}
+        ${settings.configured ? `
+          <div class="pay-actions">
+            <a class="primary-btn action-link" href="${escapeHtml(payment.uri)}">Open UPI App</a>
+            <button class="ghost-btn" data-copy-upi="${escapeHtml(settings.upiId)}" type="button">Copy UPI ID</button>
+          </div>
+        ` : ""}
       </div>
     </div>
     <form class="payment-form" data-payment-form>
@@ -585,25 +590,31 @@ function paymentForm(reg) {
 
 function buildUpiPayment(reg) {
   const settings = state.paymentSettings || {};
+  const amount = Number(reg?.feeAmount || 1000).toFixed(2);
+  const reference = String(reg?.id || `REG${Date.now()}`).replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
   const params = new URLSearchParams({
     pa: settings.upiId || "add-your-upi-id@bank",
     pn: settings.upiName || COLLEGE_NAME,
-    am: String(reg?.feeAmount || 1000),
+    tr: reference,
+    am: amount,
     cu: "INR",
-    tn: `Competition fee ${reg?.id || ""}`.trim()
+    tn: `KIT Competition Fee ${reference}`.trim()
   });
+  const uri = `upi://pay?${params.toString()}`;
   return {
-    uri: `upi://pay?${params.toString()}`
+    uri,
+    qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=18&ecc=H&data=${encodeURIComponent(uri)}`
   };
 }
 
 function renderPaymentQr() {
   const target = document.querySelector("[data-upi-qr]");
   if (!target || target.classList.contains("upi-qr-disabled")) return;
-  try {
-    target.innerHTML = createQrSvg(target.dataset.upiUri, "UPI payment QR code");
-  } catch {
-    target.innerHTML = "<span>QR unavailable</span>";
+  const image = target.querySelector("img");
+  if (image) {
+    image.addEventListener("error", () => {
+      target.innerHTML = "<span>QR image failed. Use Open UPI App or Copy UPI ID.</span>";
+    });
   }
 }
 
@@ -627,6 +638,19 @@ function bindStudentActions() {
         copyButton.textContent = "Copied";
       } catch {
         copyButton.textContent = id;
+      }
+    });
+  }
+
+  const copyUpiButton = document.querySelector("[data-copy-upi]");
+  if (copyUpiButton) {
+    copyUpiButton.addEventListener("click", async () => {
+      const id = copyUpiButton.dataset.copyUpi;
+      try {
+        await navigator.clipboard.writeText(id);
+        copyUpiButton.textContent = "Copied";
+      } catch {
+        copyUpiButton.textContent = id;
       }
     });
   }
