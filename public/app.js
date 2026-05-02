@@ -139,7 +139,7 @@ function authView() {
   app.innerHTML = `
     <section class="auth-layout">
       <div class="auth-visual">
-        <img src="/assets/1486620736d1.png" alt="Students registering at a college competition desk" />
+        <a href="https://images-hostinger.suggestcollege.com//media/colleges/cover/colleges/logo/1486619310d1_mqJ9RVC.jpg"> KITT <a/>
         <div class="brand-block">
           <div class="brand-kicker">${COLLEGE_NAME}</div>
           <h1>${FEST_NAME}</h1>
