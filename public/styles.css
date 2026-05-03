@@ -259,6 +259,69 @@ button {
   white-space: nowrap;
 }
 
+.fee-strip em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.field-help {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.competition-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.competition-choice {
+  width: 100%;
+  min-height: 118px;
+  padding: 14px;
+  text-align: left;
+  background: #f8fafb;
+  border: 1px solid #dbe4eb;
+  border-radius: 8px;
+}
+
+.competition-choice span,
+.registration-card span,
+.rule-card span {
+  display: block;
+  color: var(--teal-dark);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.competition-choice strong,
+.registration-card strong,
+.rule-card strong {
+  display: block;
+  margin-top: 6px;
+}
+
+.competition-choice small,
+.competition-choice em,
+.registration-card small,
+.registration-card em,
+.rule-card small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-style: normal;
+}
+
+.competition-choice.active {
+  border-color: var(--teal);
+  background: #eef9f8;
+  box-shadow: 0 10px 24px rgba(0, 124, 122, 0.14);
+}
+
 .primary-btn,
 .secondary-btn,
 .danger-btn,
@@ -354,6 +417,58 @@ button {
   background: #f8fafb;
   border: 1px solid #e4eaf0;
   border-radius: 8px;
+}
+
+.mini-event-card em {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-style: normal;
+}
+
+.campus-preview,
+.board-panel,
+.rules-panel,
+.college-panel {
+  margin-top: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 12px 34px rgba(24, 35, 47, 0.06);
+  overflow: hidden;
+}
+
+.campus-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.campus-preview .campus-copy,
+.college-panel .campus-copy,
+.ops-grid .campus-copy {
+  padding: 0 18px;
+}
+
+.campus-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 18px 18px;
+}
+
+.campus-tags span {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 4px 10px;
+  background: #edf7f6;
+  color: var(--teal-dark);
+  border: 1px solid #d3ece8;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .mini-event-card span,
@@ -500,11 +615,39 @@ button {
   font-size: 2rem;
 }
 
+.student-stats .stat-card strong {
+  font-size: 1.22rem;
+  line-height: 1.35;
+}
+
 .student-grid {
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
   gap: 18px;
   align-items: start;
+}
+
+.registration-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 18px;
+}
+
+.registration-card {
+  width: 100%;
+  min-height: 122px;
+  padding: 14px;
+  text-align: left;
+  background: #f8fafb;
+  border: 1px solid #dbe4eb;
+  border-radius: 8px;
+}
+
+.registration-card.active {
+  border-color: var(--maroon);
+  background: #fff7fb;
+  box-shadow: 0 10px 24px rgba(156, 39, 69, 0.12);
 }
 
 .info-card {
@@ -705,6 +848,15 @@ button {
   align-items: start;
 }
 
+.college-dashboard-grid,
+.ops-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+  align-items: start;
+}
+
 .pass-card,
 .guide-panel,
 .insight-panel {
@@ -791,6 +943,51 @@ button {
   border-radius: 8px;
 }
 
+.guide-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.guide-card b {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 0.84rem;
+}
+
+.rules-grid {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.rule-card {
+  padding: 14px;
+  background: #f8fafb;
+  border: 1px solid #e4eaf0;
+  border-radius: 8px;
+}
+
+.rule-card ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+}
+
+.rule-card li + li {
+  margin-top: 6px;
+}
+
+.compact-form {
+  padding: 18px;
+}
+
+.compact-detail-grid {
+  padding: 18px;
+}
+
 .upi-payment {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
@@ -868,7 +1065,7 @@ button {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 190px 160px 180px auto auto;
+  grid-template-columns: minmax(220px, 1fr) 190px 180px 160px 180px auto auto;
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -1092,6 +1289,8 @@ td {
 
   .student-grid,
   .student-feature-grid,
+  .college-dashboard-grid,
+  .ops-grid,
   .admin-layout,
   .insight-grid {
     grid-template-columns: 1fr;
@@ -1126,10 +1325,15 @@ td {
   .status-actions,
   .upi-payment,
   .mini-event-grid,
+  .competition-picker,
   .journey-panel,
   .pass-body,
   .pass-details,
-  .guide-grid {
+  .guide-grid,
+  .registration-board,
+  .rules-grid,
+  .college-dashboard-grid,
+  .ops-grid {
     grid-template-columns: 1fr;
   }
 
