@@ -97,50 +97,7 @@
       ]
     }
   ],
-  "students": [
-    {
-      "id": "stu_b355d730bf6baf1d",
-      "fullName": "Shivakumar SN",
-      "email": "shivu200500@gmail.com",
-      "phone": "+919148176218",
-      "passwordHash": "8ade61fc676fe88cbc30ad67abdbf810:45c35e843ca70b8173fc5f039d7d957ae736a52a75eb792276e8d78dbcf5d271",
-      "collegeName": "KALPATARU INSTITUTE OF TECHNOLOGY",
-      "collegeCode": "KA501",
-      "city": "Shivakumar S N",
-      "department": "CS",
-      "year": "1st Year",
-      "rollNumber": "1KI23CS001",
-      "createdAt": "2026-04-27T13:35:14.579Z"
-    },
-    {
-      "id": "stu_d5a56d4a722da8ca",
-      "fullName": "Shivakumar SN",
-      "email": "shshivakumar234@gmail.com",
-      "phone": "+919148176218",
-      "passwordHash": "eb1475ded7c1f5a0f94d855c6fe158b6:5efb7d605a975ce2ec5cb7a69fa70c320813589570f6fcea766fdb3f9c5f7b63",
-      "collegeName": "KALPATARU INSTITUTE OF TECHNOLOGY",
-      "collegeCode": "KA501",
-      "city": "Shivakumar S N",
-      "department": "CS",
-      "year": "1st Year",
-      "rollNumber": "1KI23CS0002",
-      "createdAt": "2026-04-28T12:54:53.008Z"
-    },
-    {
-      "id": "stu_c74b0831e88fc7fa",
-      "fullName": "Test Student",
-      "email": "student1777787322722@example.com",
-      "phone": "9876543210",
-      "passwordHash": "d0ceefbeb972bddc9a2b09a7c4d1fcd3:06f70f3a809b0d821b77e0f0746ceb553ab0aa59f5c2c2d2d48de5f32d3709c1",
-      "collegeName": "KALPATARU INSTITUTE OF TECHNOLOGY",
-      "collegeCode": "KIT01",
-      "city": "Tiptur",
-      "department": "CS",
-      "year": "3rd Year",
-      "rollNumber": "KIT1777787322722",
-      "createdAt": "2026-05-03T05:48:42.796Z"
-    }
-  ],
+ 
   "registrations": [
     {
       "id": "reg_627a88dfeaebd9ec",
