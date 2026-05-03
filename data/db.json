@@ -6,10 +6,23 @@
       "category": "Technical",
       "date": "2026-05-15",
       "venue": "Computer Lab A",
-      "fee": 1,
+      "fee": 1000,
       "teamMin": 2,
       "teamMax": 4,
-      "seats": 80
+      "seats": 80,
+      "reportingTime": "09:00 AM",
+      "duration": "2 rounds | 3 hours",
+      "description": "A problem-solving coding event focused on logic, debugging, and fast implementation.",
+      "rounds": [
+        "Aptitude and logic screening",
+        "Hands-on coding challenge"
+      ],
+      "rules": [
+        "Teams must have 2 to 4 members from a recognized college.",
+        "Every team should bring at least one laptop with the required coding tools.",
+        "Internet use is allowed only if the round coordinator announces it.",
+        "The final submission must be uploaded before the timer ends."
+      ]
     },
     {
       "id": "business-plan",
@@ -17,10 +30,23 @@
       "category": "Management",
       "date": "2026-05-16",
       "venue": "Seminar Hall",
-      "fee": 1,
+      "fee": 1000,
       "teamMin": 2,
       "teamMax": 4,
-      "seats": 40
+      "seats": 40,
+      "reportingTime": "10:00 AM",
+      "duration": "Presentation + Q&A",
+      "description": "Teams pitch a startup idea, market strategy, and revenue plan to a panel.",
+      "rounds": [
+        "Idea abstract review",
+        "Pitch presentation and jury interaction"
+      ],
+      "rules": [
+        "Teams must submit a clear business theme and problem statement.",
+        "Presentation time is limited and will be stopped once the bell rings.",
+        "Only original ideas are accepted; copied plans will be rejected.",
+        "Judging will consider feasibility, creativity, and delivery."
+      ]
     },
     {
       "id": "robotics-rush",
@@ -28,10 +54,23 @@
       "category": "Engineering",
       "date": "2026-05-17",
       "venue": "Innovation Lab",
-      "fee": 1,
+      "fee": 1000,
       "teamMin": 2,
       "teamMax": 4,
-      "seats": 30
+      "seats": 30,
+      "reportingTime": "09:30 AM",
+      "duration": "Arena task + build review",
+      "description": "Build and control a robot to complete a timed task in the arena.",
+      "rounds": [
+        "Machine inspection",
+        "Arena performance"
+      ],
+      "rules": [
+        "All machines must satisfy the size and power rules announced at check-in.",
+        "Teams are responsible for their own device safety and spare parts.",
+        "Unsafe operation can lead to immediate disqualification.",
+        "Judging will combine task completion, accuracy, and timing."
+      ]
     },
     {
       "id": "poster-design",
@@ -39,10 +78,23 @@
       "category": "Creative",
       "date": "2026-05-15",
       "venue": "Design Studio",
-      "fee": 1,
+      "fee": 1000,
       "teamMin": 2,
       "teamMax": 4,
-      "seats": 100
+      "seats": 100,
+      "reportingTime": "11:00 AM",
+      "duration": "Design sprint | 2 hours",
+      "description": "Create a visual poster around a campus or social innovation theme.",
+      "rounds": [
+        "Theme briefing",
+        "Poster creation and jury review"
+      ],
+      "rules": [
+        "Teams must finish their poster within the announced design window.",
+        "All submitted work must be original and prepared by the team.",
+        "Judging considers concept clarity, layout, and visual impact.",
+        "Final files should be submitted in the format requested by coordinators."
+      ]
     }
   ],
   "students": [
@@ -73,6 +125,20 @@
       "year": "1st Year",
       "rollNumber": "1KI23CS0002",
       "createdAt": "2026-04-28T12:54:53.008Z"
+    },
+    {
+      "id": "stu_c74b0831e88fc7fa",
+      "fullName": "Test Student",
+      "email": "student1777787322722@example.com",
+      "phone": "9876543210",
+      "passwordHash": "d0ceefbeb972bddc9a2b09a7c4d1fcd3:06f70f3a809b0d821b77e0f0746ceb553ab0aa59f5c2c2d2d48de5f32d3709c1",
+      "collegeName": "KALPATARU INSTITUTE OF TECHNOLOGY",
+      "collegeCode": "KIT01",
+      "city": "Tiptur",
+      "department": "CS",
+      "year": "3rd Year",
+      "rollNumber": "KIT1777787322722",
+      "createdAt": "2026-05-03T05:48:42.796Z"
     }
   ],
   "registrations": [
@@ -82,14 +148,15 @@
       "competitionId": "code-sprint",
       "teamName": "Code Ninjas",
       "teamSize": 4,
-      "feeAmount": 1,
+      "feeAmount": 1000,
       "paymentStatus": "Paid",
       "paymentMethod": "UPI",
       "paymentReference": "PAY-MOH8P2GK-EC23",
       "paidAt": "2026-04-27T13:35:17.684Z",
       "adminStatus": "Verified",
       "createdAt": "2026-04-27T13:35:14.579Z",
-      "updatedAt": "2026-04-28T12:48:58.380Z"
+      "updatedAt": "2026-04-28T12:48:58.380Z",
+      "teamMembers": []
     },
     {
       "id": "reg_64c9efc685f5b279",
@@ -97,14 +164,54 @@
       "competitionId": "code-sprint",
       "teamName": "Codere",
       "teamSize": 2,
-      "feeAmount": 1,
+      "feeAmount": 1000,
       "paymentStatus": "Paid",
       "paymentMethod": "UPI QR",
       "paymentReference": "PAY-MOIMP7U7-A302",
       "paidAt": "2026-04-28T12:55:05.455Z",
       "adminStatus": "Rejected",
       "createdAt": "2026-04-28T12:54:53.008Z",
-      "updatedAt": "2026-04-28T13:05:59.734Z"
+      "updatedAt": "2026-04-28T13:05:59.734Z",
+      "teamMembers": []
+    },
+    {
+      "id": "reg_db987932efb1ff30",
+      "studentId": "stu_c74b0831e88fc7fa",
+      "competitionId": "code-sprint",
+      "teamName": "Alpha Team",
+      "teamSize": 2,
+      "teamMembers": [
+        "Member One",
+        "Member Two"
+      ],
+      "feeAmount": 1000,
+      "paymentStatus": "Pending",
+      "paymentMethod": "",
+      "paymentReference": "",
+      "paidAt": "",
+      "adminStatus": "Awaiting Payment",
+      "createdAt": "2026-05-03T05:48:42.796Z",
+      "updatedAt": "2026-05-03T05:48:42.796Z"
+    },
+    {
+      "id": "reg_d132c5fc0063b957",
+      "studentId": "stu_c74b0831e88fc7fa",
+      "competitionId": "robotics-rush",
+      "teamName": "Robo Crew",
+      "teamSize": 3,
+      "teamMembers": [
+        "A",
+        "B",
+        "C"
+      ],
+      "feeAmount": 1000,
+      "paymentStatus": "Paid",
+      "paymentMethod": "UPI QR",
+      "paymentReference": "REF1777787322722",
+      "paidAt": "2026-05-03T05:48:42.842Z",
+      "adminStatus": "Submitted",
+      "createdAt": "2026-05-03T05:48:42.836Z",
+      "updatedAt": "2026-05-03T05:48:42.842Z"
     }
   ]
 }
