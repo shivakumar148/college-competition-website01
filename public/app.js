@@ -8,16 +8,20 @@ const state = {
   token: localStorage.getItem("cc_token") || "",
   roleStored: localStorage.getItem("cc_role") || "",
   competitions: [],
+  collegeInfo: null,
   paymentSettings: null,
   student: null,
   registration: null,
+  studentRegistrations: [],
+  selectedStudentRegistrationId: "",
   adminData: null,
   selectedRegistrationId: "",
   filters: {
     search: "",
     payment: "all",
     status: "all",
-    competition: "all"
+    competition: "all",
+    department: "all"
   }
 };
 
@@ -59,7 +63,10 @@ function clearAuth() {
   state.roleStored = "";
   state.student = null;
   state.registration = null;
+  state.studentRegistrations = [];
+  state.selectedStudentRegistrationId = "";
   state.adminData = null;
+  state.selectedRegistrationId = "";
   localStorage.removeItem("cc_token");
   localStorage.removeItem("cc_role");
 }
@@ -89,6 +96,11 @@ async function loadCompetitions() {
   state.competitions = data.competitions;
 }
 
+async function loadCollegeInfo() {
+  const data = await api("/api/college-info");
+  state.collegeInfo = data.college;
+}
+
 async function loadPaymentSettings() {
   state.paymentSettings = await api("/api/payment-settings");
 }
@@ -100,8 +112,8 @@ function setMessage(type, text) {
   box.textContent = text;
 }
 
-function competitionOptions(selectedId = "") {
-  return state.competitions
+function competitionOptions(selectedId = "", competitions = state.competitions) {
+  return competitions
     .map((item) => {
       const selected = item.id === selectedId ? "selected" : "";
       return `<option value="${escapeHtml(item.id)}" ${selected}>${escapeHtml(item.name)} - ${money.format(item.fee)}</option>`;
@@ -109,27 +121,77 @@ function competitionOptions(selectedId = "") {
     .join("");
 }
 
-function selectedCompetition() {
-  const select = document.querySelector("[name='competitionId']");
-  const id = select?.value || state.competitions[0]?.id;
-  return state.competitions.find((item) => item.id === id) || state.competitions[0];
+function competitionChoiceCards(competitions, selectedId = "") {
+  return competitions.map((item) => `
+    <button class="competition-choice ${item.id === selectedId ? "active" : ""}" data-competition-choice="${escapeHtml(item.id)}" type="button">
+      <span>${escapeHtml(item.category)}</span>
+      <strong>${escapeHtml(item.name)}</strong>
+      <small>${formatDate(item.date)} | ${escapeHtml(item.venue)}</small>
+      <em>${money.format(item.fee)} | ${item.teamMin}-${item.teamMax} members</em>
+    </button>
+  `).join("");
 }
 
-function updateFeePreview() {
-  const competition = selectedCompetition();
-  const preview = document.querySelector("[data-fee-preview]");
-  const teamHint = document.querySelector("[data-team-hint]");
-  const teamInput = document.querySelector("[name='teamSize']");
-  if (!competition || !preview) return;
-  preview.textContent = money.format(competition.fee);
-  if (teamHint) {
-    teamHint.textContent = `${competition.teamMin}-${competition.teamMax} members`;
+function findCompetition(id) {
+  return state.competitions.find((item) => item.id === id);
+}
+
+function formCompetition(form) {
+  const select = form?.querySelector("[data-competition-input]");
+  const id = select?.value || state.competitions[0]?.id;
+  return findCompetition(id) || state.competitions[0];
+}
+
+function syncCompetitionPicker(form) {
+  const select = form?.querySelector("[data-competition-input]");
+  if (!select) return;
+  form.querySelectorAll("[data-competition-choice]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.competitionChoice === select.value);
+  });
+}
+
+function updateCompetitionForm(form) {
+  const competition = formCompetition(form);
+  const preview = form?.querySelector("[data-fee-preview]");
+  const teamHint = form?.querySelector("[data-team-hint]");
+  const teamInput = form?.querySelector("[name='teamSize']");
+  const summary = form?.querySelector("[data-competition-summary]");
+  const rulesMini = form?.querySelector("[data-rules-mini]");
+  const seats = form?.querySelector("[data-seat-preview]");
+  if (!competition) return;
+
+  if (preview) preview.textContent = money.format(competition.fee);
+  if (teamHint) teamHint.textContent = `${competition.teamMin}-${competition.teamMax} members`;
+  if (summary) summary.textContent = `${competition.category} | ${competition.duration || "Event round details at venue"}`;
+  if (seats) seats.textContent = `${competition.seats} seats`;
+  if (rulesMini) {
+    rulesMini.textContent = (competition.rules || []).slice(0, 2).join("  •  ");
   }
+
   if (teamInput) {
+    const currentValue = Number(teamInput.value || 0);
     teamInput.min = competition.teamMin;
     teamInput.max = competition.teamMax;
-    if (!teamInput.value) teamInput.value = competition.teamMin;
+    if (!currentValue || currentValue < competition.teamMin) teamInput.value = competition.teamMin;
+    if (currentValue > competition.teamMax) teamInput.value = competition.teamMax;
   }
+
+  syncCompetitionPicker(form);
+}
+
+function bindCompetitionForm(form) {
+  const select = form?.querySelector("[data-competition-input]");
+  if (!form || !select) return;
+
+  select.addEventListener("change", () => updateCompetitionForm(form));
+  form.querySelectorAll("[data-competition-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      select.value = button.dataset.competitionChoice || select.value;
+      updateCompetitionForm(form);
+    });
+  });
+
+  updateCompetitionForm(form);
 }
 
 function authView() {
@@ -170,7 +232,7 @@ function authView() {
           <div class="form-area">
             ${isRegister ? registerForm() : loginForm(isAdmin)}
             <div class="message" data-message></div>
-            ${!isAdmin ? competitionPreview() : ""}
+            ${!isAdmin ? `${competitionPreview()}${campusPreview()}` : ""}
           </div>
         </section>
       </div>
@@ -197,11 +259,7 @@ function authView() {
     form.addEventListener("submit", isRegister ? handleRegister : handleLogin);
   }
 
-  const competitionSelect = document.querySelector("[name='competitionId']");
-  if (competitionSelect) {
-    competitionSelect.addEventListener("change", updateFeePreview);
-    updateFeePreview();
-  }
+  if (isRegister && form) bindCompetitionForm(form);
 }
 
 function loginForm(isAdmin) {
@@ -272,9 +330,14 @@ function registerForm() {
         <label for="rollNumber">Roll Number</label>
         <input id="rollNumber" name="rollNumber" required minlength="2" />
       </div>
-      <div class="field">
-        <label for="competitionId">Competition</label>
-        <select id="competitionId" name="competitionId" required>${competitionOptions(firstCompetition?.id)}</select>
+      <div class="field full">
+        <label for="competitionId">Choose Competition</label>
+        <div class="competition-picker">
+          ${competitionChoiceCards(state.competitions, firstCompetition?.id)}
+        </div>
+        <select id="competitionId" name="competitionId" required data-competition-input>${competitionOptions(firstCompetition?.id)}</select>
+        <small class="field-help" data-competition-summary></small>
+        <small class="field-help" data-rules-mini></small>
       </div>
       <div class="field">
         <label for="teamSize">Team Size <span data-team-hint></span></label>
@@ -291,7 +354,7 @@ function registerForm() {
       <div class="field">
         <label>Competition Fee</label>
         <div class="fee-strip">
-          <span>Pay after registration</span>
+          <span>Pay after registration <em data-seat-preview></em></span>
           <strong data-fee-preview>${firstCompetition ? money.format(firstCompetition.fee) : "-"}</strong>
         </div>
       </div>
@@ -304,11 +367,13 @@ function registerForm() {
 
 function competitionPreview() {
   if (!state.competitions.length) return "";
+  const firstDate = [...state.competitions]
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
   return `
     <div class="event-preview">
       <div class="event-preview-head">
         <span>Featured Competitions</span>
-        <strong>Fee: ${money.format(1000)} | Team: 2-4</strong>
+        <strong>${state.competitions.length} events | Starts ${formatDate(firstDate?.date)}</strong>
       </div>
       <div class="mini-event-grid">
         ${state.competitions.map((item) => `
@@ -316,10 +381,30 @@ function competitionPreview() {
             <span>${escapeHtml(item.category)}</span>
             <strong>${escapeHtml(item.name)}</strong>
             <small>${formatDate(item.date)} | ${escapeHtml(item.venue)}</small>
+            <em>${money.format(item.fee)} | ${item.teamMin}-${item.teamMax} members</em>
           </div>
         `).join("")}
       </div>
     </div>
+  `;
+}
+
+function campusPreview() {
+  const college = state.collegeInfo;
+  if (!college) return "";
+  return `
+    <section class="campus-preview">
+      <div class="card-title">
+        <div>
+          <h3>${escapeHtml(college.name)}</h3>
+          <p>${escapeHtml(college.campusLabel)} | ${escapeHtml(college.location)}</p>
+        </div>
+      </div>
+      <p class="campus-copy">${escapeHtml(college.about)}</p>
+      <div class="campus-tags">
+        ${(college.highlights || []).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -342,8 +427,7 @@ async function handleLogin(event) {
       await loadAdminDashboard();
       adminView();
     } else {
-      state.student = data.student;
-      state.registration = data.registration;
+      await loadStudentDashboard();
       studentView();
     }
   } catch (error) {
@@ -366,8 +450,7 @@ async function handleRegister(event) {
       body: JSON.stringify(payload)
     });
     saveAuth(data.token, data.role);
-    state.student = data.student;
-    state.registration = data.registration;
+    await loadStudentDashboard();
     studentView();
   } catch (error) {
     setMessage("error", error.message);
@@ -400,13 +483,47 @@ function shell(title, subtitle, body) {
   document.querySelector("[data-logout]").addEventListener("click", handleLogout);
 }
 
+function currentStudentRegistration() {
+  return state.studentRegistrations.find((item) => item.id === state.selectedStudentRegistrationId) || state.studentRegistrations[0] || null;
+}
+
+function studentMetrics() {
+  const registrations = state.studentRegistrations;
+  const next = [...registrations]
+    .filter((item) => item.competition?.date)
+    .sort((a, b) => String(a.competition?.date || "").localeCompare(String(b.competition?.date || "")))[0];
+
+  return {
+    total: registrations.length,
+    paid: registrations.filter((item) => item.paymentStatus === "Paid").length,
+    verified: registrations.filter((item) => item.adminStatus === "Verified").length,
+    awaitingPayment: registrations.filter((item) => item.paymentStatus !== "Paid").length,
+    nextLabel: next ? `${next.competition?.name} | ${formatDate(next.competition?.date)}` : "Choose a competition"
+  };
+}
+
+function availableCompetitions() {
+  const joined = new Set(state.studentRegistrations.map((item) => item.competitionId));
+  return state.competitions.filter((item) => !joined.has(item.id));
+}
+
 function studentView() {
   const student = state.student;
-  const reg = state.registration;
+  const reg = currentStudentRegistration();
   const comp = reg?.competition || {};
   const paymentDone = reg?.paymentStatus === "Paid";
+  const metrics = studentMetrics();
   const body = `
-    ${progressTracker(reg)}
+    ${reg ? progressTracker(reg) : ""}
+    <div class="stats-grid student-stats">
+      ${statCard("My Registrations", metrics.total)}
+      ${statCard("Paid Entries", metrics.paid)}
+      ${statCard("Verified", metrics.verified)}
+      ${statCard("Next Event", metrics.nextLabel)}
+    </div>
+
+    ${registrationBoard()}
+
     <div class="student-grid">
       <section class="info-card">
         <div class="card-title">
@@ -415,8 +532,8 @@ function studentView() {
             <p>${escapeHtml(student?.email || "")}</p>
           </div>
           <div class="card-actions">
-            <span class="status-pill ${statusClass(reg?.adminStatus)}">${escapeHtml(reg?.adminStatus || "Submitted")}</span>
-            <button class="row-btn" data-copy-reg="${escapeHtml(reg?.id || "")}" type="button">Copy ID</button>
+            <span class="status-pill ${statusClass(reg?.adminStatus)}">${escapeHtml(reg?.adminStatus || "Select competition")}</span>
+            ${reg ? `<button class="row-btn" data-copy-reg="${escapeHtml(reg.id)}" type="button">Copy ID</button>` : ""}
           </div>
         </div>
         <div class="card-body">
@@ -428,29 +545,45 @@ function studentView() {
             ${detailItem("City", student?.city || "-")}
             ${detailItem("Department", student?.department)}
             ${detailItem("Year", student?.year)}
-          ${detailItem("Roll Number", student?.rollNumber)}
-          ${detailItem("Team Members", teamMembersText(reg))}
+            ${detailItem("Roll Number", student?.rollNumber)}
+            ${detailItem("Support Desk", state.collegeInfo?.supportDesk?.phone || "-")}
           </div>
         </div>
       </section>
 
       <section class="payment-panel">
-        <h3>${escapeHtml(comp.name || "Competition")}</h3>
-        <p>${escapeHtml(comp.category || "")} | ${formatDate(comp.date)} | ${escapeHtml(comp.venue || "")}</p>
-        <div class="amount-line">
-          <span>Fee Status</span>
-          <span class="status-pill ${statusClass(reg?.paymentStatus)}">${escapeHtml(reg?.paymentStatus || "Pending")}</span>
-        </div>
-        <div class="amount-line">
-          <span>Amount</span>
-          <strong>${money.format(reg?.feeAmount || 0)}</strong>
-        </div>
-        ${paymentDone ? paidBlock(reg) : paymentForm(reg)}
+        ${reg ? `
+          <h3>${escapeHtml(comp.name || "Competition")}</h3>
+          <p>${escapeHtml(comp.category || "")} | ${formatDate(comp.date)} | ${escapeHtml(comp.venue || "")}</p>
+          <div class="amount-line">
+            <span>Fee Status</span>
+            <span class="status-pill ${statusClass(reg?.paymentStatus)}">${escapeHtml(reg?.paymentStatus || "Pending")}</span>
+          </div>
+          <div class="amount-line">
+            <span>Amount</span>
+            <strong>${money.format(reg?.feeAmount || 0)}</strong>
+          </div>
+          <div class="amount-line">
+            <span>Reporting Time</span>
+            <strong>${escapeHtml(comp.reportingTime || "-")}</strong>
+          </div>
+          ${paymentDone ? paidBlock(reg) : paymentForm(reg)}
+        ` : `
+          <h3>No Competition Selected Yet</h3>
+          <p>Create your first competition entry from the dashboard below to continue with payment and admin approval.</p>
+        `}
       </section>
     </div>
+
     <div class="student-feature-grid">
       ${eventPass(student, reg, comp, paymentDone)}
+      ${addCompetitionPanel()}
+    </div>
+
+    <div class="college-dashboard-grid">
       ${competitionGuide()}
+      ${competitionRulesPanel()}
+      ${collegeAboutPanel()}
     </div>
   `;
 
@@ -458,8 +591,13 @@ function studentView() {
   renderPaymentQr();
   renderPassQr();
   bindStudentActions();
-  const form = document.querySelector("[data-payment-form]");
-  if (form) form.addEventListener("submit", handlePayment);
+  const paymentFormNode = document.querySelector("[data-payment-form]");
+  if (paymentFormNode) paymentFormNode.addEventListener("submit", handlePayment);
+  const addForm = document.querySelector("[data-add-competition-form]");
+  if (addForm) {
+    addForm.addEventListener("submit", handleAddCompetition);
+    bindCompetitionForm(addForm);
+  }
 }
 
 function detailItem(label, value) {
@@ -473,6 +611,33 @@ function detailItem(label, value) {
 
 function teamMembersText(reg) {
   return Array.isArray(reg?.teamMembers) && reg.teamMembers.length ? reg.teamMembers.join(", ") : "-";
+}
+
+function registrationBoard() {
+  if (!state.studentRegistrations.length) {
+    return `<section class="board-panel"><div class="empty-state">No competition entries yet.</div></section>`;
+  }
+
+  return `
+    <section class="board-panel">
+      <div class="card-title">
+        <div>
+          <h3>My Competition Dashboard</h3>
+          <p>Select any entry to view fee, pass status, and event rules.</p>
+        </div>
+      </div>
+      <div class="registration-board">
+        ${state.studentRegistrations.map((item) => `
+          <button class="registration-card ${item.id === state.selectedStudentRegistrationId ? "active" : ""}" data-student-registration="${escapeHtml(item.id)}" type="button">
+            <span>${escapeHtml(item.competition?.category || "Competition")}</span>
+            <strong>${escapeHtml(item.competition?.name || "Event")}</strong>
+            <small>${formatDate(item.competition?.date)} | ${escapeHtml(item.competition?.venue || "-")}</small>
+            <em>${money.format(item.feeAmount || 0)} | ${escapeHtml(item.paymentStatus)} | ${escapeHtml(item.adminStatus)}</em>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function progressTracker(reg) {
@@ -511,11 +676,11 @@ function eventPass(student, reg, comp, paymentDone) {
         <div class="pass-qr ${ready ? "" : "pass-qr-locked"}" data-pass-qr data-pass-payload="${escapeHtml(passPayload)}">
           ${ready ? "" : "<span>Unlocks after verification</span>"}
         </div>
-        <div class="pass-details">
-          ${detailItem("Registration ID", reg?.id)}
-          ${detailItem("Student", student?.fullName)}
-          ${detailItem("Competition", comp?.name)}
-          ${detailItem("Team", `${reg?.teamName || "-"} (${reg?.teamSize || "-"})`)}
+      <div class="pass-details">
+        ${detailItem("Registration ID", reg?.id)}
+        ${detailItem("Student", student?.fullName)}
+        ${detailItem("Competition", comp?.name)}
+        ${detailItem("Team", `${reg?.teamName || "-"} (${reg?.teamSize || "-"})`)}
           ${detailItem("Members", teamMembersText(reg))}
         </div>
       </div>
@@ -532,7 +697,7 @@ function competitionGuide() {
       <div class="card-title">
         <div>
           <h3>Competition Guide</h3>
-          <p>Quick view of events, venues, and seats.</p>
+          <p>Quick view of schedule, rounds, and seat strength.</p>
         </div>
       </div>
       <div class="guide-grid">
@@ -541,10 +706,127 @@ function competitionGuide() {
             <span>${escapeHtml(item.category)}</span>
             <strong>${escapeHtml(item.name)}</strong>
             <small>${formatDate(item.date)} | ${escapeHtml(item.venue)}</small>
+            <p>${escapeHtml(item.description || "")}</p>
             <em>${money.format(item.fee)} | ${item.teamMin}-${item.teamMax} members | ${item.seats} seats</em>
+            <b>${escapeHtml(item.reportingTime || "-")} | ${escapeHtml(item.duration || "-")}</b>
           </div>
         `).join("")}
       </div>
+    </section>
+  `;
+}
+
+function competitionRulesPanel() {
+  return `
+    <section class="rules-panel">
+      <div class="card-title">
+        <div>
+          <h3>Rules For All Competitions</h3>
+          <p>Keep these ready before you come to campus.</p>
+        </div>
+      </div>
+      <div class="rules-grid">
+        ${state.competitions.map((item) => `
+          <article class="rule-card">
+            <span>${escapeHtml(item.category)}</span>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${escapeHtml(item.rounds?.join(" | ") || "")}</small>
+            <ul>
+              ${(item.rules || []).map((rule) => `<li>${escapeHtml(rule)}</li>`).join("")}
+            </ul>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function collegeAboutPanel() {
+  const college = state.collegeInfo;
+  if (!college) return "";
+
+  return `
+    <section class="college-panel">
+      <div class="card-title">
+        <div>
+          <h3>${escapeHtml(college.name)}</h3>
+          <p>${escapeHtml(college.campusLabel)} | ${escapeHtml(college.location)}</p>
+        </div>
+      </div>
+      <p class="campus-copy">${escapeHtml(college.about)}</p>
+      <div class="campus-tags">
+        ${(college.highlights || []).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+      </div>
+      <div class="detail-grid compact-detail-grid">
+        ${detailItem("Campus", college.location)}
+        ${detailItem("Departments", (college.departments || []).join(", "))}
+        ${detailItem("Support Email", college.supportDesk?.email)}
+        ${detailItem("Support Phone", college.supportDesk?.phone)}
+        ${detailItem("Help Desk Hours", college.supportDesk?.hours)}
+      </div>
+    </section>
+  `;
+}
+
+function addCompetitionPanel() {
+  const options = availableCompetitions();
+  if (!options.length) {
+    return `
+      <section class="info-card add-panel">
+        <div class="card-title">
+          <div>
+            <h3>Competition Selection</h3>
+            <p>You have already added all available competitions.</p>
+          </div>
+        </div>
+        <div class="empty-state">Your dashboard already contains every event in this fest.</div>
+      </section>
+    `;
+  }
+
+  const firstCompetition = options[0];
+  return `
+    <section class="info-card add-panel">
+      <div class="card-title">
+        <div>
+          <h3>Add Another Competition</h3>
+          <p>Choose an event, enter team details, then pay that event fee from the dashboard.</p>
+        </div>
+      </div>
+      <form class="form-grid compact-form" data-add-competition-form>
+        <div class="field full">
+          <label for="extraCompetitionId">Competition Selection</label>
+          <div class="competition-picker">
+            ${competitionChoiceCards(options, firstCompetition.id)}
+          </div>
+          <select id="extraCompetitionId" name="competitionId" required data-competition-input>${competitionOptions(firstCompetition.id, options)}</select>
+          <small class="field-help" data-competition-summary></small>
+          <small class="field-help" data-rules-mini></small>
+        </div>
+        <div class="field">
+          <label for="extraTeamSize">Team Size <span data-team-hint></span></label>
+          <input id="extraTeamSize" name="teamSize" type="number" value="${firstCompetition.teamMin}" required />
+        </div>
+        <div class="field">
+          <label for="extraTeamName">Team Name</label>
+          <input id="extraTeamName" name="teamName" required minlength="2" />
+        </div>
+        <div class="field full">
+          <label for="extraTeamMembers">Team Members</label>
+          <textarea id="extraTeamMembers" name="teamMembers" rows="3" placeholder="Enter one member name per line"></textarea>
+        </div>
+        <div class="field">
+          <label>Competition Fee</label>
+          <div class="fee-strip">
+            <span>Team confirmation <em data-seat-preview></em></span>
+            <strong data-fee-preview>${money.format(firstCompetition.fee)}</strong>
+          </div>
+        </div>
+        <div class="form-actions field full">
+          <button class="primary-btn" type="submit">Add Competition</button>
+        </div>
+      </form>
+      <div class="message" data-message></div>
     </section>
   `;
 }
@@ -577,6 +859,7 @@ function paymentForm(reg) {
       </div>
     </div>
     <form class="payment-form" data-payment-form>
+      <input name="registrationId" type="hidden" value="${escapeHtml(reg?.id || "")}" />
       <div class="field">
         <label for="transactionId">UPI Transaction / Reference ID</label>
         <input id="transactionId" name="transactionId" minlength="6" placeholder="Example: 412345678901" required ${settings.configured ? "" : "disabled"} />
@@ -629,6 +912,13 @@ function renderPassQr() {
 }
 
 function bindStudentActions() {
+  document.querySelectorAll("[data-student-registration]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedStudentRegistrationId = button.dataset.studentRegistration || state.selectedStudentRegistrationId;
+      studentView();
+    });
+  });
+
   const copyButton = document.querySelector("[data-copy-reg]");
   if (copyButton) {
     copyButton.addEventListener("click", async () => {
@@ -903,15 +1193,40 @@ async function handlePayment(event) {
   try {
     const form = new FormData(event.currentTarget);
     const transactionId = String(form.get("transactionId") || "").trim();
+    const registrationId = String(form.get("registrationId") || "").trim();
     if (transactionId.length < 6) {
       throw new Error("Enter the UPI transaction/reference ID after payment");
     }
     const data = await api("/api/student/payment", {
       method: "POST",
-      body: JSON.stringify({ method: "UPI QR", transactionId })
+      body: JSON.stringify({ method: "UPI QR", transactionId, registrationId })
     });
-    state.registration = data.registration;
+    state.selectedStudentRegistrationId = data.registration?.id || state.selectedStudentRegistrationId;
+    await loadStudentDashboard();
     studentView();
+  } catch (error) {
+    setMessage("error", error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handleAddCompetition(event) {
+  event.preventDefault();
+  const button = event.submitter;
+  button.disabled = true;
+  try {
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+    payload.teamSize = Number(payload.teamSize);
+    const data = await api("/api/student/registrations", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    state.selectedStudentRegistrationId = data.registration?.id || state.selectedStudentRegistrationId;
+    await loadStudentDashboard();
+    studentView();
+    setMessage("success", "Competition added. Complete the payment for this event to send it to admin.");
   } catch (error) {
     setMessage("error", error.message);
   } finally {
@@ -922,12 +1237,18 @@ async function handlePayment(event) {
 async function loadStudentDashboard() {
   const data = await api("/api/student/dashboard");
   state.student = data.student;
-  state.registration = data.registration;
+  state.collegeInfo = data.college || state.collegeInfo;
+  state.studentRegistrations = data.registrations || [];
+  if (!state.selectedStudentRegistrationId || !state.studentRegistrations.some((item) => item.id === state.selectedStudentRegistrationId)) {
+    state.selectedStudentRegistrationId = state.studentRegistrations[0]?.id || "";
+  }
+  state.registration = currentStudentRegistration();
 }
 
 async function loadAdminDashboard() {
   state.adminData = await api("/api/admin/registrations");
-  if (!state.selectedRegistrationId && state.adminData.registrations.length) {
+  state.collegeInfo = state.adminData.college || state.collegeInfo;
+  if (state.adminData.registrations.length && (!state.selectedRegistrationId || !state.adminData.registrations.some((item) => item.id === state.selectedRegistrationId))) {
     state.selectedRegistrationId = state.adminData.registrations[0].id;
   }
 }
@@ -936,6 +1257,7 @@ function adminView() {
   const data = state.adminData || { registrations: [], competitions: [], totals: {} };
   const filtered = filteredRegistrations(data.registrations);
   const metrics = adminMetrics(data.registrations);
+  const departments = adminDepartments(data.registrations);
   const selected = data.registrations.find((item) => item.id === state.selectedRegistrationId) || filtered[0] || data.registrations[0];
   if (selected) state.selectedRegistrationId = selected.id;
 
@@ -957,6 +1279,10 @@ function adminView() {
         <option value="all">All competitions</option>
         ${data.competitions.map((item) => `<option value="${escapeHtml(item.id)}" ${state.filters.competition === item.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}
       </select>
+      <select data-filter="department">
+        <option value="all">All departments</option>
+        ${departments.map((item) => `<option value="${escapeHtml(item)}" ${state.filters.department === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}
+      </select>
       <select data-filter="payment">
         <option value="all" ${state.filters.payment === "all" ? "selected" : ""}>All payments</option>
         <option value="Paid" ${state.filters.payment === "Paid" ? "selected" : ""}>Paid</option>
@@ -973,6 +1299,8 @@ function adminView() {
       <button class="primary-btn" data-export type="button">Export CSV</button>
     </div>
 
+    ${adminOperations(data)}
+
     <div class="admin-layout">
       <section class="table-panel">
         ${filtered.length ? registrationsTable(filtered) : `<div class="empty-state">No registrations found.</div>`}
@@ -983,7 +1311,7 @@ function adminView() {
     </div>
   `;
 
-  shell("Admin Dashboard", `${COLLEGE_NAME} registrations and fee collection`, body);
+  shell("Admin Dashboard", `${state.collegeInfo?.campusLabel || COLLEGE_NAME} registrations and fee collection`, body);
   bindAdminEvents();
 }
 
@@ -1044,6 +1372,63 @@ function adminInsights(data, metrics) {
   `;
 }
 
+function adminDepartments(registrations) {
+  return [...new Set(registrations.map((item) => item.student?.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+}
+
+function adminOperations(data) {
+  const departmentRows = (data.departmentSummary || []).slice(0, 6);
+  const queue = data.reviewQueue || [];
+  return `
+    <div class="ops-grid">
+      <section class="insight-panel">
+        <div class="insight-head">
+          <span>Department Snapshot</span>
+          <strong>${departmentRows.length}</strong>
+        </div>
+        <div class="summary-list">
+          ${departmentRows.map((item) => `
+            <div class="summary-row">
+              <div>
+                <strong>${escapeHtml(item.department)}</strong>
+                <span>${item.count} registrations | ${item.paid} paid</span>
+              </div>
+              <em>${item.verified} verified</em>
+            </div>
+          `).join("") || `<div class="empty-state">No department data yet.</div>`}
+        </div>
+      </section>
+      <section class="insight-panel">
+        <div class="insight-head">
+          <span>Review Queue</span>
+          <strong>${queue.length}</strong>
+        </div>
+        <div class="summary-list">
+          ${queue.map((item) => `
+            <div class="summary-row">
+              <div>
+                <strong>${escapeHtml(item.student?.fullName || "-")}</strong>
+                <span>${escapeHtml(item.competition?.name || "-")} | ${escapeHtml(item.student?.department || "-")}</span>
+              </div>
+              <em>${escapeHtml(item.paymentReference || "Awaiting ref")}</em>
+            </div>
+          `).join("") || `<div class="empty-state">No paid entries waiting for review.</div>`}
+        </div>
+      </section>
+      <section class="insight-panel">
+        <div class="insight-head">
+          <span>Campus Note</span>
+          <strong>${escapeHtml(state.collegeInfo?.shortName || "KIT")}</strong>
+        </div>
+        <p class="campus-copy">${escapeHtml(state.collegeInfo?.tagline || "")}</p>
+        <div class="campus-tags">
+          ${(state.collegeInfo?.highlights || []).slice(0, 3).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function competitionSummaryRow(competition, registrations) {
   const count = registrations.filter((item) => item.competitionId === competition.id).length;
   const paid = registrations.filter((item) => item.competitionId === competition.id && item.paymentStatus === "Paid").length;
@@ -1077,7 +1462,8 @@ function filteredRegistrations(registrations) {
     const matchesPayment = state.filters.payment === "all" || item.paymentStatus === state.filters.payment;
     const matchesStatus = state.filters.status === "all" || item.adminStatus === state.filters.status;
     const matchesCompetition = state.filters.competition === "all" || item.competitionId === state.filters.competition;
-    return matchesSearch && matchesPayment && matchesStatus && matchesCompetition;
+    const matchesDepartment = state.filters.department === "all" || item.student?.department === state.filters.department;
+    return matchesSearch && matchesPayment && matchesStatus && matchesCompetition && matchesDepartment;
   });
 }
 
@@ -1140,6 +1526,7 @@ function selectedDetail(item) {
       ${sideItem("Payment", `${item.paymentStatus}${item.paymentReference ? ` | ${item.paymentReference}` : ""}`)}
       ${sideItem("Admin Status", item.adminStatus)}
       ${sideItem("Registered", formatDate(item.createdAt))}
+      ${sideItem("Event Rules", (item.competition?.rules || []).slice(0, 2).join(" | "))}
     </div>
     ${paymentComplete ? "" : `<div class="message error show">Verification and rejection unlock after the student submits payment.</div>`}
     <div class="status-actions">
@@ -1301,7 +1688,7 @@ async function handleLogout() {
 
 async function boot() {
   try {
-    await Promise.all([loadCompetitions(), loadPaymentSettings()]);
+    await Promise.all([loadCompetitions(), loadCollegeInfo(), loadPaymentSettings()]);
     if (state.token && state.roleStored === "student") {
       await loadStudentDashboard();
       studentView();
