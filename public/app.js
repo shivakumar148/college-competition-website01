@@ -7,6 +7,8 @@ const state = {
   authMode: "login",
   token: localStorage.getItem("cc_token") || "",
   roleStored: localStorage.getItem("cc_role") || "",
+  studentPage: "overview",
+  adminPage: "overview",
   competitions: [],
   collegeInfo: null,
   paymentSettings: null,
@@ -61,6 +63,8 @@ function saveAuth(token, role) {
 function clearAuth() {
   state.token = "";
   state.roleStored = "";
+  state.studentPage = "overview";
+  state.adminPage = "overview";
   state.student = null;
   state.registration = null;
   state.studentRegistrations = [];
@@ -105,8 +109,8 @@ async function loadPaymentSettings() {
   state.paymentSettings = await api("/api/payment-settings");
 }
 
-function setMessage(type, text) {
-  const box = document.querySelector("[data-message]");
+function setMessage(type, text, target = "[data-message]") {
+  const box = typeof target === "string" ? document.querySelector(target) : target;
   if (!box) return;
   box.className = `message ${type} show`;
   box.textContent = text;
@@ -197,11 +201,12 @@ function bindCompetitionForm(form) {
 function authView() {
   const isAdmin = state.role === "admin";
   const isRegister = state.authMode === "register" && !isAdmin;
+  const heroImage = state.collegeInfo?.gallery?.[0] || "/assets/kit-campus-main.jpg";
 
   app.innerHTML = `
     <section class="auth-layout">
       <div class="auth-visual">
-        <img src="/campus-registration.png?v=5" onerror="this.onerror=null;this.src='/assets/campus-registration.png?v=5';" alt="Students registering at a college competition desk" />
+        <img src="${escapeHtml(heroImage)}" onerror="this.onerror=null;this.src='/assets/campus-registration.png?v=5';" alt="Kalpataru Institute of Technology campus view" />
         <div class="brand-block">
           <div class="brand-kicker">${COLLEGE_NAME}</div>
           <h1>${FEST_NAME}</h1>
@@ -404,6 +409,9 @@ function campusPreview() {
       <div class="campus-tags">
         ${(college.highlights || []).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
       </div>
+      <div class="detail-grid compact-detail-grid">
+        ${(college.stats || []).map((item) => detailItem(item.label, item.value)).join("")}
+      </div>
     </section>
   `;
 }
@@ -431,7 +439,7 @@ async function handleLogin(event) {
       studentView();
     }
   } catch (error) {
-    setMessage("error", error.message);
+    setMessage("error", error.message, "[data-payment-message]");
   } finally {
     button.disabled = false;
   }
@@ -459,7 +467,43 @@ async function handleRegister(event) {
   }
 }
 
-function shell(title, subtitle, body) {
+function dashboardTabs(items) {
+  if (!items?.length) return "";
+  return `
+    <div class="dashboard-tabs">
+      ${items.map((item) => `
+        <button
+          class="dashboard-tab ${item.active ? "active" : ""}"
+          data-page-role="${escapeHtml(item.role)}"
+          data-page-key="${escapeHtml(item.key)}"
+          type="button"
+        >
+          <span>${escapeHtml(item.label)}</span>
+          ${item.note ? `<small>${escapeHtml(item.note)}</small>` : ""}
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function bindDashboardTabs() {
+  document.querySelectorAll("[data-page-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const role = button.dataset.pageRole;
+      const key = button.dataset.pageKey;
+      if (!role || !key) return;
+      if (role === "student") {
+        state.studentPage = key;
+        studentView();
+      } else if (role === "admin") {
+        state.adminPage = key;
+        adminView();
+      }
+    });
+  });
+}
+
+function shell(title, subtitle, body, tabs = []) {
   app.innerHTML = `
     <header class="topbar">
       <div class="topbar-inner">
@@ -477,10 +521,12 @@ function shell(title, subtitle, body) {
           <p>${escapeHtml(subtitle)}</p>
         </div>
       </div>
+      ${dashboardTabs(tabs)}
       ${body}
     </section>
   `;
   document.querySelector("[data-logout]").addEventListener("click", handleLogout);
+  bindDashboardTabs();
 }
 
 function currentStudentRegistration() {
@@ -514,16 +560,51 @@ function studentView() {
   const paymentDone = reg?.paymentStatus === "Paid";
   const metrics = studentMetrics();
   const body = `
-    ${reg ? progressTracker(reg) : ""}
     <div class="stats-grid student-stats">
       ${statCard("My Registrations", metrics.total)}
       ${statCard("Paid Entries", metrics.paid)}
       ${statCard("Verified", metrics.verified)}
       ${statCard("Next Event", metrics.nextLabel)}
     </div>
+    ${studentPageContent(student, reg, comp, paymentDone)}
+  `;
 
+  shell(`Welcome, ${student?.fullName || "Student"}`, "Student dashboard", body, studentTabs(metrics));
+  renderPaymentQr();
+  renderPassQr();
+  bindStudentActions();
+  const paymentFormNode = document.querySelector("[data-payment-form]");
+  if (paymentFormNode) paymentFormNode.addEventListener("submit", handlePayment);
+  const addForm = document.querySelector("[data-add-competition-form]");
+  if (addForm) {
+    addForm.addEventListener("submit", handleAddCompetition);
+    bindCompetitionForm(addForm);
+  }
+}
+
+function studentTabs(metrics) {
+  return [
+    { role: "student", key: "overview", label: "Overview", note: `${metrics.total} entries`, active: state.studentPage === "overview" },
+    { role: "student", key: "competitions", label: "Competitions", note: `${state.competitions.length} events`, active: state.studentPage === "competitions" },
+    { role: "student", key: "college", label: "College", note: state.collegeInfo?.shortName || "Campus", active: state.studentPage === "college" },
+    { role: "student", key: "support", label: "Support", note: "Rules & help", active: state.studentPage === "support" }
+  ];
+}
+
+function studentPageContent(student, reg, comp, paymentDone) {
+  const pages = {
+    overview: studentOverviewPage(student, reg, comp, paymentDone),
+    competitions: studentCompetitionsPage(),
+    college: studentCollegePage(),
+    support: studentSupportPage()
+  };
+  return pages[state.studentPage] || pages.overview;
+}
+
+function studentOverviewPage(student, reg, comp, paymentDone) {
+  return `
+    ${reg ? progressTracker(reg) : ""}
     ${registrationBoard()}
-
     <div class="student-grid">
       <section class="info-card">
         <div class="card-title">
@@ -579,25 +660,43 @@ function studentView() {
       ${eventPass(student, reg, comp, paymentDone)}
       ${addCompetitionPanel()}
     </div>
+  `;
+}
 
+function studentCompetitionsPage() {
+  return `
+    ${registrationBoard()}
+    <div class="student-feature-grid">
+      ${addCompetitionPanel()}
+      ${competitionHighlightsPanel()}
+    </div>
     <div class="college-dashboard-grid">
       ${competitionGuide()}
       ${competitionRulesPanel()}
-      ${collegeAboutPanel()}
+      ${competitionTrendingPanel()}
     </div>
   `;
+}
 
-  shell(`Welcome, ${student?.fullName || "Student"}`, "Student dashboard", body);
-  renderPaymentQr();
-  renderPassQr();
-  bindStudentActions();
-  const paymentFormNode = document.querySelector("[data-payment-form]");
-  if (paymentFormNode) paymentFormNode.addEventListener("submit", handlePayment);
-  const addForm = document.querySelector("[data-add-competition-form]");
-  if (addForm) {
-    addForm.addEventListener("submit", handleAddCompetition);
-    bindCompetitionForm(addForm);
-  }
+function studentCollegePage() {
+  return `
+    ${collegeGalleryPanel()}
+    <div class="college-dashboard-grid">
+      ${collegeAboutPanel()}
+      ${campusFacilitiesPanel()}
+      ${collegeContactPanel()}
+    </div>
+  `;
+}
+
+function studentSupportPage() {
+  return `
+    <div class="college-dashboard-grid">
+      ${supportStepsPanel()}
+      ${competitionRulesPanel()}
+      ${collegeContactPanel()}
+    </div>
+  `;
 }
 
 function detailItem(label, value) {
@@ -716,6 +815,61 @@ function competitionGuide() {
   `;
 }
 
+function competitionHighlightsPanel() {
+  const upcoming = [...state.competitions].sort((a, b) => String(a.date || "").localeCompare(String(b.date || ""))).slice(0, 3);
+  return `
+    <section class="info-card">
+      <div class="card-title">
+        <div>
+          <h3>Trending Event Picks</h3>
+          <p>Fast view of the competitions students usually shortlist first.</p>
+        </div>
+      </div>
+      <div class="guide-grid">
+        ${upcoming.map((item, index) => `
+          <div class="guide-card">
+            <span>${index === 0 ? "Hot Pick" : "Upcoming"}</span>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${formatDate(item.date)} | ${escapeHtml(item.venue)}</small>
+            <p>${escapeHtml(item.description || "")}</p>
+            <em>${money.format(item.fee)} | ${item.teamMin}-${item.teamMax} members</em>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function competitionTrendingPanel() {
+  const cards = [...state.competitions]
+    .sort((a, b) => a.seats - b.seats || String(a.date || "").localeCompare(String(b.date || "")))
+    .slice(0, 4);
+  return `
+    <section class="rules-panel">
+      <div class="card-title">
+        <div>
+          <h3>Trending Options</h3>
+          <p>Useful if you want to compare different competitions before joining.</p>
+        </div>
+      </div>
+      <div class="rules-grid">
+        ${cards.map((item) => `
+          <article class="rule-card">
+            <span>${escapeHtml(item.category)}</span>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${escapeHtml(item.reportingTime || "-")} | ${escapeHtml(item.duration || "-")}</small>
+            <ul>
+              <li>${item.seats} seats available for this event.</li>
+              <li>Team size allowed: ${item.teamMin} to ${item.teamMax} members.</li>
+              <li>${escapeHtml(item.rounds?.[0] || "Round details announced on event day.")}</li>
+            </ul>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function competitionRulesPanel() {
   return `
     <section class="rules-panel">
@@ -750,7 +904,7 @@ function collegeAboutPanel() {
       <div class="card-title">
         <div>
           <h3>${escapeHtml(college.name)}</h3>
-          <p>${escapeHtml(college.campusLabel)} | ${escapeHtml(college.location)}</p>
+      <p>${escapeHtml(college.campusLabel)} | ${escapeHtml(college.location)}</p>
         </div>
       </div>
       <p class="campus-copy">${escapeHtml(college.about)}</p>
@@ -763,6 +917,100 @@ function collegeAboutPanel() {
         ${detailItem("Support Email", college.supportDesk?.email)}
         ${detailItem("Support Phone", college.supportDesk?.phone)}
         ${detailItem("Help Desk Hours", college.supportDesk?.hours)}
+      </div>
+    </section>
+  `;
+}
+
+function collegeGalleryPanel() {
+  const gallery = state.collegeInfo?.gallery || [];
+  if (!gallery.length) return "";
+  return `
+    <section class="gallery-panel">
+      <div class="card-title">
+        <div>
+          <h3>KIT Campus Gallery</h3>
+          <p>Official campus visuals from Kalpataru Institute of Technology, Tiptur.</p>
+        </div>
+      </div>
+      <div class="gallery-grid">
+        <figure class="gallery-card gallery-featured">
+          <img src="${escapeHtml(gallery[0])}" alt="KIT campus main view" loading="eager" />
+        </figure>
+        ${gallery.slice(1).map((image, index) => `
+          <figure class="gallery-card">
+            <img src="${escapeHtml(image)}" alt="KIT campus photo ${index + 2}" loading="lazy" />
+          </figure>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function campusFacilitiesPanel() {
+  const college = state.collegeInfo;
+  if (!college) return "";
+  return `
+    <section class="rules-panel">
+      <div class="card-title">
+        <div>
+          <h3>Campus Facilities</h3>
+          <p>Useful for students coming to the fest from different colleges.</p>
+        </div>
+      </div>
+      <div class="rules-grid">
+        ${(college.facilities || []).map((item) => `
+          <article class="rule-card">
+            <span>Facility</span>
+            <strong>${escapeHtml(item)}</strong>
+            <small>${escapeHtml(college.location)}</small>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function collegeContactPanel() {
+  const college = state.collegeInfo;
+  if (!college) return "";
+  return `
+    <section class="college-panel">
+      <div class="card-title">
+        <div>
+          <h3>College Contact & Event Help</h3>
+          <p>${escapeHtml(college.shortName)} support and event communication details.</p>
+        </div>
+      </div>
+      <div class="detail-grid compact-detail-grid">
+        ${detailItem("Main Email", college.supportDesk?.email)}
+        ${detailItem("Primary Phone", college.supportDesk?.phone)}
+        ${detailItem("Alternate Phone", college.supportDesk?.alternatePhone || "-")}
+        ${detailItem("Help Desk Hours", college.supportDesk?.hours)}
+        ${detailItem("Location", college.location)}
+        ${detailItem("Campus Label", college.campusLabel)}
+      </div>
+      <div class="campus-tags">
+        ${(college.accreditations || []).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function supportStepsPanel() {
+  return `
+    <section class="info-card">
+      <div class="card-title">
+        <div>
+          <h3>How To Complete Registration</h3>
+          <p>Simple steps for students joining one or more competitions.</p>
+        </div>
+      </div>
+      <div class="timeline-list">
+        <div><strong>1.</strong><span>Create your student account and choose the first competition.</span></div>
+        <div><strong>2.</strong><span>Use the competitions page to add different events one by one.</span></div>
+        <div><strong>3.</strong><span>Pay the fee shown for the selected event and submit the transaction ID.</span></div>
+        <div><strong>4.</strong><span>Wait for admin verification and then open your event pass.</span></div>
       </div>
     </section>
   `;
@@ -826,7 +1074,7 @@ function addCompetitionPanel() {
           <button class="primary-btn" type="submit">Add Competition</button>
         </div>
       </form>
-      <div class="message" data-message></div>
+      <div class="message" data-add-message></div>
     </section>
   `;
 }
@@ -866,14 +1114,14 @@ function paymentForm(reg) {
       </div>
       <button class="secondary-btn" type="submit" ${settings.configured ? "" : "disabled"}>Submit Payment & Registration</button>
       ${setupMessage}
-      <div class="message" data-message></div>
+      <div class="message" data-payment-message></div>
     </form>
   `;
 }
 
 function buildUpiPayment(reg) {
   const settings = state.paymentSettings || {};
-  const amount = Number(reg?.feeAmount || 1000).toFixed(2);
+  const amount = Number(reg?.feeAmount || 1).toFixed(2);
   const reference = String(reg?.id || `REG${Date.now()}`).replace(/[^a-zA-Z0-9]/g, "").slice(0, 32);
   const params = new URLSearchParams({
     pa: settings.upiId || "add-your-upi-id@bank",
@@ -1226,9 +1474,9 @@ async function handleAddCompetition(event) {
     state.selectedStudentRegistrationId = data.registration?.id || state.selectedStudentRegistrationId;
     await loadStudentDashboard();
     studentView();
-    setMessage("success", "Competition added. Complete the payment for this event to send it to admin.");
+    setMessage("success", "Competition added. Complete the payment for this event to send it to admin.", "[data-add-message]");
   } catch (error) {
-    setMessage("error", error.message);
+    setMessage("error", error.message, "[data-add-message]");
   } finally {
     button.disabled = false;
   }
@@ -1270,9 +1518,44 @@ function adminView() {
       ${statCard("Verified", metrics.verified)}
       ${statCard("Collected", money.format(data.totals.collected || 0))}
     </div>
+    ${adminPageContent(data, metrics, departments, filtered, selected)}
+  `;
 
+  shell("Admin Dashboard", `${state.collegeInfo?.campusLabel || COLLEGE_NAME} registrations and fee collection`, body, adminTabs(data, metrics));
+  bindAdminEvents();
+}
+
+function adminTabs(data, metrics) {
+  return [
+    { role: "admin", key: "overview", label: "Overview", note: `${metrics.paymentRate}% paid`, active: state.adminPage === "overview" },
+    { role: "admin", key: "registrations", label: "Registrations", note: `${data.registrations.length} entries`, active: state.adminPage === "registrations" },
+    { role: "admin", key: "competitions", label: "Competitions", note: `${data.competitions.length} events`, active: state.adminPage === "competitions" },
+    { role: "admin", key: "reports", label: "Reports", note: "Trends & queue", active: state.adminPage === "reports" },
+    { role: "admin", key: "college", label: "College", note: state.collegeInfo?.shortName || "KIT", active: state.adminPage === "college" }
+  ];
+}
+
+function adminPageContent(data, metrics, departments, filtered, selected) {
+  const pages = {
+    overview: adminOverviewPage(data, metrics),
+    registrations: adminRegistrationsPage(data, departments, filtered, selected),
+    competitions: adminCompetitionsPage(data),
+    reports: adminReportsPage(data, metrics),
+    college: adminCollegePage()
+  };
+  return pages[state.adminPage] || pages.overview;
+}
+
+function adminOverviewPage(data, metrics) {
+  return `
     ${adminInsights(data, metrics)}
+    ${adminOperations(data)}
+    ${adminRecentActivityPanel(data)}
+  `;
+}
 
+function adminRegistrationsPage(data, departments, filtered, selected) {
+  return `
     <div class="toolbar">
       <input data-filter="search" value="${escapeHtml(state.filters.search)}" placeholder="Search student, college, email" />
       <select data-filter="competition">
@@ -1298,9 +1581,6 @@ function adminView() {
       <button class="ghost-btn" data-refresh type="button">Refresh</button>
       <button class="primary-btn" data-export type="button">Export CSV</button>
     </div>
-
-    ${adminOperations(data)}
-
     <div class="admin-layout">
       <section class="table-panel">
         ${filtered.length ? registrationsTable(filtered) : `<div class="empty-state">No registrations found.</div>`}
@@ -1310,9 +1590,90 @@ function adminView() {
       </aside>
     </div>
   `;
+}
 
-  shell("Admin Dashboard", `${state.collegeInfo?.campusLabel || COLLEGE_NAME} registrations and fee collection`, body);
-  bindAdminEvents();
+function adminCompetitionsPage(data) {
+  const progress = data.competitionProgress || [];
+  return `
+    <div class="college-dashboard-grid">
+      ${progress.map((item) => `
+        <section class="insight-panel">
+          <div class="insight-head">
+            <span>${escapeHtml(item.category)}</span>
+            <strong>${item.seatsFilled}%</strong>
+          </div>
+          <h3>${escapeHtml(item.name)}</h3>
+          <div class="meter"><span style="width: ${item.seatsFilled}%"></span></div>
+          <div class="insight-row">
+            <span>Registrations</span>
+            <strong>${item.registrations}</strong>
+          </div>
+          <div class="insight-row">
+            <span>Paid / Verified</span>
+            <strong>${item.paid} / ${item.verified}</strong>
+          </div>
+          <div class="insight-row">
+            <span>Total Seats</span>
+            <strong>${item.seats}</strong>
+          </div>
+        </section>
+      `).join("")}
+    </div>
+    <div class="college-dashboard-grid">
+      ${competitionGuide()}
+      ${competitionRulesPanel()}
+      ${competitionTrendingPanel()}
+    </div>
+  `;
+}
+
+function adminReportsPage(data, metrics) {
+  return `
+    ${adminOperations(data)}
+    <div class="college-dashboard-grid">
+      <section class="insight-panel">
+        <div class="insight-head">
+          <span>Payment Health</span>
+          <strong>${metrics.paymentRate}%</strong>
+        </div>
+        <div class="meter"><span style="width: ${metrics.paymentRate}%"></span></div>
+        <div class="timeline-list">
+          <div><strong>${data.totals.paid || 0}</strong><span>Entries have completed payment.</span></div>
+          <div><strong>${metrics.awaitingPayment}</strong><span>Entries are still waiting for fee submission.</span></div>
+          <div><strong>${metrics.verified}</strong><span>Entries are already approved by admin.</span></div>
+        </div>
+      </section>
+      ${adminRecentActivityPanel(data)}
+      <section class="insight-panel">
+        <div class="insight-head">
+          <span>Department Reach</span>
+          <strong>${(data.departmentSummary || []).length}</strong>
+        </div>
+        <div class="summary-list">
+          ${(data.departmentSummary || []).map((item) => `
+            <div class="summary-row">
+              <div>
+                <strong>${escapeHtml(item.department)}</strong>
+                <span>${item.count} entries | ${item.paid} paid</span>
+              </div>
+              <em>${item.verified} verified</em>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function adminCollegePage() {
+  return `
+    ${collegeGalleryPanel()}
+    <div class="college-dashboard-grid">
+      ${collegeAboutPanel()}
+      ${campusFacilitiesPanel()}
+      ${collegeContactPanel()}
+    </div>
+  `;
 }
 
 function statCard(label, value) {
@@ -1429,6 +1790,29 @@ function adminOperations(data) {
   `;
 }
 
+function adminRecentActivityPanel(data) {
+  const items = data.recentActivity || [];
+  return `
+    <section class="insight-panel">
+      <div class="insight-head">
+        <span>Recent Activity</span>
+        <strong>${items.length}</strong>
+      </div>
+      <div class="summary-list">
+        ${items.map((item) => `
+          <div class="summary-row">
+            <div>
+              <strong>${escapeHtml(item.studentName)}</strong>
+              <span>${escapeHtml(item.competition)} | ${formatDate(item.updatedAt)}</span>
+            </div>
+            <em>${escapeHtml(item.paymentStatus)} / ${escapeHtml(item.status)}</em>
+          </div>
+        `).join("") || `<div class="empty-state">No activity yet.</div>`}
+      </div>
+    </section>
+  `;
+}
+
 function competitionSummaryRow(competition, registrations) {
   const count = registrations.filter((item) => item.competitionId === competition.id).length;
   const paid = registrations.filter((item) => item.competitionId === competition.id && item.paymentStatus === "Paid").length;
@@ -1534,7 +1918,7 @@ function selectedDetail(item) {
       <button class="primary-btn" data-status="Verified" data-status-id="${escapeHtml(item.id)}" type="button" ${actionDisabled}>Verify</button>
       <button class="danger-btn" data-status="Rejected" data-status-id="${escapeHtml(item.id)}" type="button" ${actionDisabled}>Reject</button>
     </div>
-    <div class="message" data-message></div>
+    <div class="message" data-admin-message></div>
   `;
 }
 
@@ -1591,7 +1975,7 @@ function bindAdminEvents() {
         await loadAdminDashboard();
         adminView();
       } catch (error) {
-        setMessage("error", error.message);
+        setMessage("error", error.message, "[data-admin-message]");
       } finally {
         button.disabled = false;
       }
