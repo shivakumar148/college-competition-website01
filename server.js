@@ -26,17 +26,45 @@ const COLLEGE_PROFILE = {
   location: "Tiptur, Tumakuru District, Karnataka",
   tagline: "A practical, innovation-led engineering campus focused on technical skill, teamwork, and industry readiness.",
   about:
-    "Kalpataru Institute of Technology, Tiptur, hosts inter-college technical and creative competitions to help students present ideas, solve real problems, and build confidence on stage and in the lab.",
+    "Kalpataru Institute of Technology, Tiptur, established in 1986, is an AICTE-approved and VTU-affiliated engineering institution that regularly hosts technical, management, and creative events for student teams across campuses.",
   highlights: [
-    "Industry-oriented engineering departments",
-    "Technical clubs, project labs, and coding culture",
-    "Seminar halls, innovation spaces, and event support teams",
-    "Campus events that combine technology, creativity, and teamwork"
+    "Industry-oriented engineering departments and skill-building clubs",
+    "Technical labs, seminar halls, innovation spaces, and event-ready venues",
+    "Placements, startup culture, and project exposure across departments",
+    "Campus events that combine technology, creativity, presentation, and teamwork"
   ],
-  departments: ["Computer Science", "Electronics", "Mechanical", "Civil", "MBA", "Science & Humanities"],
+  departments: [
+    "Computer Science and Engineering",
+    "Information Science and Engineering",
+    "Artificial Intelligence and Machine Learning",
+    "Electronics and Communication Engineering",
+    "Mechanical Engineering",
+    "Civil Engineering",
+    "Master of Business Administration",
+    "Basic Science"
+  ],
+  accreditations: ["AICTE Approved", "VTU Affiliated", "NBA Accredited", "NAAC Accredited"],
+  stats: [
+    { label: "Established", value: "1986" },
+    { label: "Campus", value: "30+ Acres" },
+    { label: "Recruiters", value: "150+" },
+    { label: "Highest Package", value: "5 LPA" }
+  ],
+  facilities: [
+    "Computer labs and innovation spaces",
+    "Seminar halls and presentation venues",
+    "Library, Wi-Fi, and student support services",
+    "Transport, hostels, sports, and campus activity areas"
+  ],
+  gallery: [
+    "/assets/kit-campus-main.jpg",
+    "/assets/kit-campus-2.jpeg",
+    "/assets/kit-campus-3.jpeg"
+  ],
   supportDesk: {
-    email: "fest@kit-tiptur.edu",
-    phone: "+91 91481 76218",
+    email: "info@kittiptur.ac.in",
+    phone: "+91 99160 70553",
+    alternatePhone: "+91 97400 16919",
     hours: "09:00 AM to 05:00 PM"
   }
 };
@@ -54,7 +82,7 @@ const initialData = {
       category: "Technical",
       date: "2026-05-15",
       venue: "Computer Lab A",
-      fee: 1000,
+      fee: 1,
       teamMin: 2,
       teamMax: 4,
       seats: 80,
@@ -75,7 +103,7 @@ const initialData = {
       category: "Management",
       date: "2026-05-16",
       venue: "Seminar Hall",
-      fee: 1000,
+      fee: 1,
       teamMin: 2,
       teamMax: 4,
       seats: 40,
@@ -96,7 +124,7 @@ const initialData = {
       category: "Engineering",
       date: "2026-05-17",
       venue: "Innovation Lab",
-      fee: 1000,
+      fee: 1,
       teamMin: 2,
       teamMax: 4,
       seats: 30,
@@ -117,7 +145,7 @@ const initialData = {
       category: "Creative",
       date: "2026-05-15",
       venue: "Design Studio",
-      fee: 1000,
+      fee: 1,
       teamMin: 2,
       teamMax: 4,
       seats: 100,
@@ -402,6 +430,39 @@ function departmentSummary(registrations) {
   return [...summary.values()].sort((a, b) => b.count - a.count);
 }
 
+function competitionProgress(competitions, registrations) {
+  return competitions.map((competition) => {
+    const items = registrations.filter((item) => item.competitionId === competition.id);
+    const paid = items.filter((item) => item.paymentStatus === "Paid").length;
+    const verified = items.filter((item) => item.adminStatus === "Verified").length;
+    const seatsFilled = competition.seats ? Math.min(100, Math.round((items.length / competition.seats) * 100)) : 0;
+    return {
+      id: competition.id,
+      name: competition.name,
+      category: competition.category,
+      seats: competition.seats,
+      registrations: items.length,
+      paid,
+      verified,
+      seatsFilled
+    };
+  });
+}
+
+function recentActivity(registrations) {
+  return [...registrations]
+    .sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)))
+    .slice(0, 8)
+    .map((item) => ({
+      id: item.id,
+      studentName: item.student?.fullName || "Student",
+      competition: item.competition?.name || "Competition",
+      status: item.adminStatus,
+      paymentStatus: item.paymentStatus,
+      updatedAt: item.updatedAt || item.createdAt
+    }));
+}
+
 async function handleApi(req, res, url) {
   try {
     if (req.method === "GET" && url.pathname === "/api/health") {
@@ -655,6 +716,8 @@ async function handleApi(req, res, url) {
         competitions: db.competitions,
         college: COLLEGE_PROFILE,
         departmentSummary: departmentSummary(registrations),
+        competitionProgress: competitionProgress(db.competitions, registrations),
+        recentActivity: recentActivity(registrations),
         reviewQueue: registrations.filter((item) => item.paymentStatus === "Paid" && item.adminStatus === "Submitted").slice(0, 6),
         totals: {
           students: db.students.length,
