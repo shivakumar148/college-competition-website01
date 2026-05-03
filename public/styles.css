@@ -430,7 +430,8 @@ button {
 .campus-preview,
 .board-panel,
 .rules-panel,
-.college-panel {
+.college-panel,
+.gallery-panel {
   margin-top: 18px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -469,6 +470,32 @@ button {
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.8fr;
+  gap: 12px;
+  padding: 18px;
+}
+
+.gallery-card {
+  margin: 0;
+  min-height: 220px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #e8eef2;
+}
+
+.gallery-featured {
+  min-height: 360px;
+}
+
+.gallery-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .mini-event-card span,
@@ -576,6 +603,45 @@ button {
 .dashboard-head p {
   margin: 0;
   color: var(--muted);
+}
+
+.dashboard-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.dashboard-tab {
+  min-width: 140px;
+  min-height: 58px;
+  padding: 10px 14px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.dashboard-tab span,
+.dashboard-tab small {
+  display: block;
+}
+
+.dashboard-tab span {
+  font-weight: 850;
+  color: var(--ink);
+}
+
+.dashboard-tab small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.dashboard-tab.active {
+  border-color: var(--teal);
+  background: #eef9f8;
+  box-shadow: 0 10px 24px rgba(0, 124, 122, 0.12);
 }
 
 .stats-grid {
@@ -1264,6 +1330,33 @@ td {
   margin-top: 16px;
 }
 
+.timeline-list {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.timeline-list div {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px;
+  background: #f8fafb;
+  border: 1px solid #e4eaf0;
+  border-radius: 8px;
+}
+
+.timeline-list strong {
+  color: var(--teal-dark);
+  font-size: 1rem;
+}
+
+.timeline-list span {
+  color: var(--ink);
+  line-height: 1.5;
+}
+
 .empty-state {
   padding: 30px;
   color: var(--muted);
@@ -1291,6 +1384,7 @@ td {
   .student-feature-grid,
   .college-dashboard-grid,
   .ops-grid,
+  .gallery-grid,
   .admin-layout,
   .insight-grid {
     grid-template-columns: 1fr;
@@ -1305,6 +1399,11 @@ td {
   }
 
   .toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-tabs {
+    display: grid;
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -1333,7 +1432,9 @@ td {
   .registration-board,
   .rules-grid,
   .college-dashboard-grid,
-  .ops-grid {
+  .ops-grid,
+  .dashboard-tabs,
+  .gallery-grid {
     grid-template-columns: 1fr;
   }
 
