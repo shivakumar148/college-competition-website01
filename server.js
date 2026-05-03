@@ -19,6 +19,28 @@ const DEFAULT_UPI_NAME = "KALPATARU INSTITUTE OF TECHNOLOGY";
 
 const sessions = new Map();
 
+const COLLEGE_PROFILE = {
+  name: "Kalpataru Institute of Technology",
+  shortName: "KIT Tiptur",
+  campusLabel: "Tiptur Engineering College",
+  location: "Tiptur, Tumakuru District, Karnataka",
+  tagline: "A practical, innovation-led engineering campus focused on technical skill, teamwork, and industry readiness.",
+  about:
+    "Kalpataru Institute of Technology, Tiptur, hosts inter-college technical and creative competitions to help students present ideas, solve real problems, and build confidence on stage and in the lab.",
+  highlights: [
+    "Industry-oriented engineering departments",
+    "Technical clubs, project labs, and coding culture",
+    "Seminar halls, innovation spaces, and event support teams",
+    "Campus events that combine technology, creativity, and teamwork"
+  ],
+  departments: ["Computer Science", "Electronics", "Mechanical", "Civil", "MBA", "Science & Humanities"],
+  supportDesk: {
+    email: "fest@kit-tiptur.edu",
+    phone: "+91 91481 76218",
+    hours: "09:00 AM to 05:00 PM"
+  }
+};
+
 const defaultSettings = {
   upiId: process.env.UPI_ID || PLACEHOLDER_UPI_ID,
   upiName: process.env.UPI_NAME || DEFAULT_UPI_NAME
@@ -35,7 +57,17 @@ const initialData = {
       fee: 1000,
       teamMin: 2,
       teamMax: 4,
-      seats: 80
+      seats: 80,
+      reportingTime: "09:00 AM",
+      duration: "2 rounds | 3 hours",
+      description: "A problem-solving coding event focused on logic, debugging, and fast implementation.",
+      rounds: ["Aptitude and logic screening", "Hands-on coding challenge"],
+      rules: [
+        "Teams must have 2 to 4 members from a recognized college.",
+        "Every team should bring at least one laptop with the required coding tools.",
+        "Internet use is allowed only if the round coordinator announces it.",
+        "The final submission must be uploaded before the timer ends."
+      ]
     },
     {
       id: "business-plan",
@@ -46,7 +78,17 @@ const initialData = {
       fee: 1000,
       teamMin: 2,
       teamMax: 4,
-      seats: 40
+      seats: 40,
+      reportingTime: "10:00 AM",
+      duration: "Presentation + Q&A",
+      description: "Teams pitch a startup idea, market strategy, and revenue plan to a panel.",
+      rounds: ["Idea abstract review", "Pitch presentation and jury interaction"],
+      rules: [
+        "Teams must submit a clear business theme and problem statement.",
+        "Presentation time is limited and will be stopped once the bell rings.",
+        "Only original ideas are accepted; copied plans will be rejected.",
+        "Judging will consider feasibility, creativity, and delivery."
+      ]
     },
     {
       id: "robotics-rush",
@@ -57,7 +99,17 @@ const initialData = {
       fee: 1000,
       teamMin: 2,
       teamMax: 4,
-      seats: 30
+      seats: 30,
+      reportingTime: "09:30 AM",
+      duration: "Arena task + build review",
+      description: "Build and control a robot to complete a timed task in the arena.",
+      rounds: ["Machine inspection", "Arena performance"],
+      rules: [
+        "All machines must satisfy the size and power rules announced at check-in.",
+        "Teams are responsible for their own device safety and spare parts.",
+        "Unsafe operation can lead to immediate disqualification.",
+        "Judging will combine task completion, accuracy, and timing."
+      ]
     },
     {
       id: "poster-design",
@@ -68,7 +120,17 @@ const initialData = {
       fee: 1000,
       teamMin: 2,
       teamMax: 4,
-      seats: 100
+      seats: 100,
+      reportingTime: "11:00 AM",
+      duration: "Design sprint | 2 hours",
+      description: "Create a visual poster around a campus or social innovation theme.",
+      rounds: ["Theme briefing", "Poster creation and jury review"],
+      rules: [
+        "Teams must finish their poster within the announced design window.",
+        "All submitted work must be original and prepared by the team.",
+        "Judging considers concept clarity, layout, and visual impact.",
+        "Final files should be submitted in the format requested by coordinators."
+      ]
     }
   ],
   students: [],
@@ -105,10 +167,14 @@ async function readDatabase() {
   await ensureDatabase();
   const raw = await fsp.readFile(DB_PATH, "utf8");
   const data = JSON.parse(raw);
+  const competitions = mergeCompetitions(data.competitions);
+  const competitionMap = new Map(competitions.map((item) => [item.id, item]));
   return {
-    competitions: Array.isArray(data.competitions) ? data.competitions : initialData.competitions,
+    competitions,
     students: Array.isArray(data.students) ? data.students : [],
-    registrations: Array.isArray(data.registrations) ? data.registrations : []
+    registrations: Array.isArray(data.registrations)
+      ? data.registrations.map((item) => normalizeRegistration(item, competitionMap))
+      : []
   };
 }
 
@@ -139,6 +205,47 @@ function publicPaymentSettings(settings) {
     upiId,
     upiName: settings.upiName || defaultSettings.upiName,
     configured
+  };
+}
+
+function mergeCompetitions(items) {
+  const defaults = new Map(initialData.competitions.map((item) => [item.id, item]));
+  const source = Array.isArray(items) && items.length ? items : initialData.competitions;
+  const merged = source.map((item) => {
+    const fallback = defaults.get(item.id) || {};
+    return {
+      ...fallback,
+      ...item,
+      fee: Number(item.fee ?? fallback.fee ?? 1000),
+      teamMin: Number(item.teamMin ?? fallback.teamMin ?? 2),
+      teamMax: Number(item.teamMax ?? fallback.teamMax ?? 4),
+      seats: Number(item.seats ?? fallback.seats ?? 0),
+      rounds: Array.isArray(item.rounds) && item.rounds.length ? item.rounds : Array.isArray(fallback.rounds) ? fallback.rounds : [],
+      rules: Array.isArray(item.rules) && item.rules.length ? item.rules : Array.isArray(fallback.rules) ? fallback.rules : []
+    };
+  });
+
+  for (const fallback of initialData.competitions) {
+    if (!merged.some((item) => item.id === fallback.id)) {
+      merged.push(fallback);
+    }
+  }
+
+  return merged;
+}
+
+function normalizeRegistration(item, competitionMap) {
+  const competition = competitionMap.get(item.competitionId);
+  return {
+    ...item,
+    teamSize: Number(item.teamSize || competition?.teamMin || 2),
+    teamMembers: Array.isArray(item.teamMembers) ? item.teamMembers : parseTeamMembers(item.teamMembers),
+    feeAmount: Number(item.feeAmount || competition?.fee || 0),
+    paymentStatus: item.paymentStatus || "Pending",
+    paymentMethod: item.paymentMethod || "",
+    paymentReference: item.paymentReference || "",
+    paidAt: item.paidAt || "",
+    adminStatus: item.adminStatus || (item.paymentStatus === "Paid" ? "Submitted" : "Awaiting Payment")
   };
 }
 
@@ -253,6 +360,48 @@ function parseTeamMembers(value) {
     .filter(Boolean);
 }
 
+function studentRegistrations(db, studentId) {
+  return db.registrations
+    .filter((item) => item.studentId === studentId)
+    .map((item) => enrichRegistration(item, db))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function studentDashboardStats(registrations) {
+  const paid = registrations.filter((item) => item.paymentStatus === "Paid").length;
+  const verified = registrations.filter((item) => item.adminStatus === "Verified").length;
+  const upcoming = registrations
+    .filter((item) => item.competition?.date)
+    .sort((a, b) => String(a.competition?.date || "").localeCompare(String(b.competition?.date || "")))[0];
+
+  return {
+    total: registrations.length,
+    paid,
+    verified,
+    awaitingPayment: registrations.filter((item) => item.paymentStatus !== "Paid").length,
+    nextCompetition: upcoming
+      ? {
+          name: upcoming.competition?.name,
+          date: upcoming.competition?.date,
+          venue: upcoming.competition?.venue
+        }
+      : null
+  };
+}
+
+function departmentSummary(registrations) {
+  const summary = new Map();
+  for (const item of registrations) {
+    const department = item.student?.department || "Unknown";
+    const bucket = summary.get(department) || { department, count: 0, paid: 0, verified: 0 };
+    bucket.count += 1;
+    if (item.paymentStatus === "Paid") bucket.paid += 1;
+    if (item.adminStatus === "Verified") bucket.verified += 1;
+    summary.set(department, bucket);
+  }
+  return [...summary.values()].sort((a, b) => b.count - a.count);
+}
+
 async function handleApi(req, res, url) {
   try {
     if (req.method === "GET" && url.pathname === "/api/health") {
@@ -263,6 +412,11 @@ async function handleApi(req, res, url) {
     if (req.method === "GET" && url.pathname === "/api/competitions") {
       const db = await readDatabase();
       json(res, 200, { competitions: db.competitions });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/college-info") {
+      json(res, 200, { college: COLLEGE_PROFILE });
       return;
     }
 
@@ -331,11 +485,13 @@ async function handleApi(req, res, url) {
 
       const token = createToken();
       sessions.set(token, { role: "student", studentId: student.id, createdAt: Date.now() });
+      const registrations = studentRegistrations(db, student.id);
       json(res, 201, {
         token,
         role: "student",
         student: publicStudent(student),
-        registration: enrichRegistration(registration, db)
+        registration: enrichRegistration(registration, db),
+        registrations
       });
       return;
     }
@@ -368,12 +524,13 @@ async function handleApi(req, res, url) {
 
       const token = createToken();
       sessions.set(token, { role: "student", studentId: student.id, createdAt: Date.now() });
-      const registration = db.registrations.find((item) => item.studentId === student.id);
+      const registrations = studentRegistrations(db, student.id);
       json(res, 200, {
         token,
         role: "student",
         student: publicStudent(student),
-        registration: registration ? enrichRegistration(registration, db) : null
+        registration: registrations[0] || null,
+        registrations
       });
       return;
     }
@@ -394,11 +551,58 @@ async function handleApi(req, res, url) {
       }
       const db = await readDatabase();
       const student = db.students.find((item) => item.id === session.studentId);
-      const registration = db.registrations.find((item) => item.studentId === session.studentId);
+      const registrations = studentRegistrations(db, session.studentId);
+      const registeredIds = new Set(registrations.map((item) => item.competitionId));
       json(res, 200, {
         student: publicStudent(student),
-        registration: registration ? enrichRegistration(registration, db) : null
+        registrations,
+        stats: studentDashboardStats(registrations),
+        college: COLLEGE_PROFILE,
+        availableCompetitions: db.competitions.filter((item) => !registeredIds.has(item.id))
       });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/student/registrations") {
+      const session = getSession(req);
+      if (!session || session.role !== "student") {
+        json(res, 401, { error: "Student login required" });
+        return;
+      }
+
+      const body = await parseBody(req);
+      const db = await readDatabase();
+      const student = db.students.find((item) => item.id === session.studentId);
+      if (!student) throw new Error("Student record not found");
+
+      const competition = db.competitions.find((item) => item.id === body.competitionId);
+      if (!competition) throw new Error("Select a valid competition");
+      if (db.registrations.some((item) => item.studentId === session.studentId && item.competitionId === competition.id)) {
+        throw new Error("You have already added this competition");
+      }
+
+      const teamSize = validateTeamSize(body.teamSize, competition);
+      const now = new Date().toISOString();
+      const registration = {
+        id: createId("reg"),
+        studentId: student.id,
+        competitionId: competition.id,
+        teamName: String(body.teamName || "").trim() || `${student.fullName}'s Team`,
+        teamSize,
+        teamMembers: parseTeamMembers(body.teamMembers),
+        feeAmount: competition.fee,
+        paymentStatus: "Pending",
+        paymentMethod: "",
+        paymentReference: "",
+        paidAt: "",
+        adminStatus: "Awaiting Payment",
+        createdAt: now,
+        updatedAt: now
+      };
+
+      db.registrations.push(registration);
+      await writeDatabase(db);
+      json(res, 201, { registration: enrichRegistration(registration, db) });
       return;
     }
 
@@ -413,9 +617,15 @@ async function handleApi(req, res, url) {
       const method = requireText(body.method, "Payment method");
       const transactionId = requireText(body.transactionId, "UPI transaction/reference ID", 6);
       const db = await readDatabase();
-      const registration = db.registrations.find((item) => item.studentId === session.studentId);
+      const registrationId = String(body.registrationId || "").trim();
+      const studentEntries = db.registrations.filter((item) => item.studentId === session.studentId);
+      const registration = registrationId
+        ? studentEntries.find((item) => item.id === registrationId)
+        : studentEntries.length === 1
+          ? studentEntries[0]
+          : null;
 
-      if (!registration) throw new Error("Registration not found");
+      if (!registration) throw new Error("Select a competition registration first");
       if (registration.paymentStatus === "Paid") throw new Error("Fee has already been paid");
 
       registration.paymentStatus = "Paid";
@@ -443,6 +653,9 @@ async function handleApi(req, res, url) {
       json(res, 200, {
         registrations,
         competitions: db.competitions,
+        college: COLLEGE_PROFILE,
+        departmentSummary: departmentSummary(registrations),
+        reviewQueue: registrations.filter((item) => item.paymentStatus === "Paid" && item.adminStatus === "Submitted").slice(0, 6),
         totals: {
           students: db.students.length,
           registrations: db.registrations.length,
